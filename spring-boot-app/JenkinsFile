@@ -48,7 +48,7 @@ pipeline {
     stage('Update Deployment File') {
         environment {
             GIT_REPO_NAME = "java-maven-CI-CD"
-            GIT_USER_NAME = "ghazouanihm"
+            GIT_USER_NAME = "GhazouaniHichem"
         }
         steps {
             withCredentials([string(credentialsId: 'github-cred', variable: 'GITHUB_TOKEN')]) {
