@@ -1,0 +1,77 @@
+<!-- log4j2 web listener - placé dans conf/web.xml (global) -->
+<listener>
+  <listener-class>org.apache.logging.log4j.web.Log4jServletContextListener</listener-class>
+</listener>
+
+
+
+
+
+
+
+export CATALINA_BASE=/var/tomcat/gpinfv0
+export CATALINA_HOME=/var/tomcat/gpinfv0  # ou votre valeur réelle
+export CATALINA_OPTS="$CATALINA_OPTS -Dlog4j.configurationFile=${CATALINA_BASE}/conf/log4j2.xml"
+
+
+
+
+
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN" monitorInterval="30">
+  <Properties>
+    <Property name="baseLogDir">${sys:catalina.base}/logs</Property>
+    <!-- fallback pour apps sans servletContextName -->
+    <Property name="fallbackDir">${baseLogDir}/noapp</Property>
+  </Properties>
+
+  <Appenders>
+    <!-- Console (utile pour debug Tomcat startup) -->
+    <Console name="Console" target="SYSTEM_OUT">
+      <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+    </Console>
+
+    <!-- Null appender pour events ne provenant PAS d'un webapp -->
+    <Null name="Null"/>
+
+    <!-- RoutingAppender : crée dynamiquement un RollingFile par webapp -->
+    <!-- pattern: on choisit la valeur servletContextName -->
+    <Routing name="AppRouting" pattern="${web:servletContextName}">
+      <Routes>
+        <!-- default route: si pas de servletContextName -> ignorer -->
+        <Route>
+          <AppenderRef ref="Null"/>
+        </Route>
+
+        <!-- route dynamique : quand pattern renvoie une valeur, on crée un RollingFile -->
+        <!-- note: $${...} (double-dollar) pour evaluation différée à l'exécution -->
+        <Route>
+          <RollingFile name="AppFile-${web:servletContextName}"
+                       fileName="${baseLogDir}/$${web:servletContextName}/application.log"
+                       filePattern="${baseLogDir}/$${web:servletContextName}/application-%d{yyyy-MM-dd}-%i.log.gz">
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+            <Policies>
+              <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+              <SizeBasedTriggeringPolicy size="100MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="30"/>
+            <Filters>
+              <!-- N'enregistrer QUE ERROR et plus dans le fichier application.log -->
+              <ThresholdFilter level="error" onMatch="ACCEPT" onMismatch="DENY"/>
+            </Filters>
+          </RollingFile>
+        </Route>
+      </Routes>
+    </Routing>
+  </Appenders>
+
+  <Loggers>
+    <!-- root logger : on laisse la console / niveau INFO (ne retire rien de Tomcat/JULI) -->
+    <Root level="info">
+      <AppenderRef ref="Console"/>
+      <!-- le RoutingAppender tentera de router uniquement les events associés à un webapp -->
+      <AppenderRef ref="AppRouting"/>
+    </Root>
+  </Loggers>
+</Configuration>
+
